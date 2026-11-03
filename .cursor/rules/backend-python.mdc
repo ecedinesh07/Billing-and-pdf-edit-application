@@ -1,0 +1,15 @@
+---
+description: FastAPI backend conventions for document processing
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# Backend Conventions
+
+- Keep document processing in `app/services/` and domain logic in `app/domain/`.
+- API routers stay thin: validate → call service → return schema.
+- Never overwrite `original_storage_key`; write derived files under working/exports.
+- Represent every mutation as an `EditOperation`; rendering applies the operation stack.
+- Validate extension **and** MIME/signature; sanitize filenames; use random storage keys.
+- Do not log full document contents, OCR text dumps, or secrets.
+- Prefer async jobs for OCR/export on large documents (`PROCESSING` → `READY`).

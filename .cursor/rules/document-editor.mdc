@@ -1,0 +1,43 @@
+---
+description: Document Text Correction Engine — preserve original, localized edits only
+alwaysApply: true
+---
+
+# Document Editor Platform Rules
+
+Product: general-purpose **Document Text Correction Engine** (not template-based invoices).
+Stack: Angular 20 frontend · Python/FastAPI backend · PostgreSQL · Object storage.
+
+## Invariant
+
+```text
+Original Document + Edit Operations = Final Document
+```
+
+The uploaded document is the source of truth. OCR/AI may understand it; only controlled edit operations may modify derived output.
+
+## Strict Rules
+
+1. **Preserve original** — Never overwrite the uploaded file. Keep `original`, `working`, `edit operations`, `final output`.
+2. **Localized editing only** — Never regenerate the entire image/PDF for one text region.
+3. **No global image generation** — No generative model regenerating a full bill/receipt. Localized inpainting/compositing only.
+4. **Preserve unedited content** — Do not alter logos, borders, tables, background, unrelated text, paper texture, shadows, or dimensions unless explicitly requested.
+5. **No white-rectangle default** — Do not cover text with a white box then redraw unless the region is truly plain white and that strategy was chosen.
+6. **Coordinate-based edits** — Every edit retains page, bbox, old/new text, font/style, rotation, language/direction when available.
+7. **Operation-based architecture** — Do not mutate the master document per edit. Store immutable operations (`replace_text`, `insert_text`, `delete_text`, …).
+8. **Ambiguous edits** — Never silently change multiple matches. Ask which occurrence when ambiguous.
+9. **OCR confidence** — Store `ocrConfidence`; confirm low-confidence edits.
+10. **No financial auto-calculation** — Changing qty/price must not auto-change totals/tax/GST.
+11. **Multilingual** — Unicode-first; support language, RTL/LTR, mixed scripts.
+12. **Tests mandatory** — Editing-engine changes need tests for text PDF, scanned PDF, JPG, PNG, multi-page, multilingual, multi-match, undo/redo, export.
+13. **Dependencies** — Before adding PDF/OCR/image libs: license, maintenance, Angular/Python compatibility, commercial rights; document why.
+14. **FE/BE separation** — Angular: UI/preview/selection/chat. Python: PDF/OCR/image/analysis/export/validation.
+15. **No business-logic duplication** — Backend is the authoritative document-processing layer.
+
+## AI Boundary
+
+AI may parse intents and find candidates. AI must **not** be authoritative for pixels, PDF reconstruction, coordinates, file integrity, or authorization.
+
+## Product Boundaries
+
+Do not: fabricate documents from scratch; alter without authorization; auto-modify signatures/seals/IDs; bypass document security; silently corrupt the original.

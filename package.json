@@ -1,0 +1,13 @@
+{
+  "name": "document-text-correction",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Document Text Correction & Editor Platform",
+  "scripts": {
+    "frontend": "npm --prefix frontend start",
+    "frontend:build": "npm --prefix frontend run build",
+    "backend": "cd backend && uvicorn app.main:app --reload --port 8000",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down"
+  }
+}

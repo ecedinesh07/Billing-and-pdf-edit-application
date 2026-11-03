@@ -1,0 +1,121 @@
+<section class="editor">
+  <header class="editor__header">
+    <a routerLink="/" class="editor__back">← Upload</a>
+    <div class="editor__titles">
+      <h1>{{ meta()?.original_filename || 'Document' }}</h1>
+      <p>
+        Status: {{ meta()?.status || model()?.status || '…' }}
+        · {{ meta()?.source_type }}
+        · {{ meta()?.page_count || 0 }} page(s)
+      </p>
+    </div>
+    <div class="editor__actions">
+      <button type="button" (click)="undo()" [disabled]="busy()">Undo</button>
+      <button type="button" (click)="redo()" [disabled]="busy()">Redo</button>
+      <button type="button" class="primary" (click)="exportDocument()" [disabled]="busy()">
+        Download
+      </button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <p class="editor__error" role="alert">{{ error() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="editor__loading">Loading document…</p>
+  } @else {
+    <div class="editor__layout">
+      <div class="editor__canvas-wrap">
+        <div class="editor__pager">
+          <button type="button" (click)="prevPage()" [disabled]="pageIndex() === 0">Prev</button>
+          <span>Page {{ pageIndex() + 1 }} / {{ model()?.pages?.length || 1 }}</span>
+          <button
+            type="button"
+            (click)="nextPage()"
+            [disabled]="pageIndex() >= (model()?.pages?.length || 1) - 1"
+          >
+            Next
+          </button>
+        </div>
+
+        @if (currentPage(); as page) {
+          <div
+            class="editor__canvas"
+            [style.aspect-ratio]="page.width + ' / ' + page.height"
+          >
+            @if (previewUrl(); as url) {
+              <img class="editor__preview" [src]="url" alt="Document page preview" draggable="false" />
+            }
+
+            @for (block of page.blocks; track block.id) {
+              <button
+                type="button"
+                class="editor__block"
+                [class.editor__block--selected]="selected()?.id === block.id"
+                [class.editor__block--low]="
+                  block.confidence !== null &&
+                  block.confidence !== undefined &&
+                  block.confidence < 0.8
+                "
+                [style.left.%]="(block.bbox[0] / page.width) * 100"
+                [style.top.%]="(block.bbox[1] / page.height) * 100"
+                [style.width.%]="((block.bbox[2] - block.bbox[0]) / page.width) * 100"
+                [style.height.%]="((block.bbox[3] - block.bbox[1]) / page.height) * 100"
+                (click)="selectBlock(block)"
+                [title]="block.text"
+              >
+                <span class="editor__block-label">{{ block.text }}</span>
+              </button>
+            }
+
+            @if (!page.blocks.length) {
+              <p class="editor__empty">
+                No text detected on this page. For photos/scans, OCR runs on upload — try a clearer
+                image if nothing appears.
+              </p>
+            }
+          </div>
+        }
+      </div>
+
+      <aside class="editor__side">
+        <h2>Edit text</h2>
+        @if (selected(); as block) {
+          <p class="editor__meta">
+            Block {{ block.id.slice(0, 8) }}…
+            @if (block.confidence !== null && block.confidence !== undefined) {
+              · OCR {{ (block.confidence * 100) | number: '1.0-0' }}%
+            }
+          </p>
+          <label>
+            Replacement
+            <textarea
+              rows="4"
+              [ngModel]="editText()"
+              (ngModelChange)="editText.set($event)"
+            ></textarea>
+          </label>
+          <button type="button" class="primary" (click)="applyReplace()" [disabled]="busy()">
+            Apply change
+          </button>
+        } @else {
+          <p class="editor__hint">Select a text block on the page to edit it.</p>
+        }
+
+        <h2>Edit history</h2>
+        <ul class="editor__ops">
+          @for (op of operations(); track op.id) {
+            <li>
+              <strong>{{ op.operation_type }}</strong>
+              <span>{{ op.old_value }} → {{ op.new_value }}</span>
+              <em>{{ op.status }}</em>
+            </li>
+          } @empty {
+            <li class="editor__hint">No edits yet.</li>
+          }
+        </ul>
+      </aside>
+    </div>
+  }
+</section>

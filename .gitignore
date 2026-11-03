@@ -1,0 +1,30 @@
+# Python
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/.pytest_cache/
+backend/.env
+backend/storage/*.db
+backend/storage/originals/**
+backend/storage/working/**
+backend/storage/exports/**
+!backend/storage/originals/.gitkeep
+!backend/storage/working/.gitkeep
+!backend/storage/exports/.gitkeep
+
+# Node / Angular
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/.env
+
+# IDE / OS
+.idea/
+.vscode/
+*.log
+.DS_Store
+Thumbs.db
+
+# Firebase
+.firebase/
+firebase-debug.log

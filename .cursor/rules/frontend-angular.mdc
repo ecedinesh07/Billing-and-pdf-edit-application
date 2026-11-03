@@ -1,0 +1,13 @@
+---
+description: Angular 20 frontend conventions for the document editor UI
+globs: frontend/**/*.{ts,html,scss}
+alwaysApply: false
+---
+
+# Frontend Conventions
+
+- Standalone components, signals where appropriate, strict TypeScript, lazy-loaded features.
+- Do not duplicate PDF/OCR/image processing in the browser; call the FastAPI APIs.
+- Feature folders: `upload`, `document-editor`, `document-viewer`, `text-editor`, `preview`, `export`, `conversation` (Phase 2).
+- Shared models mirror the normalized document and edit-operation contracts from the backend.
+- Keep UI responsive during OCR/export; show job status (`UPLOADING`, `PROCESSING`, `READY`, …).

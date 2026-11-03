@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,550;9..144,700&family=Source+Sans+3:wght@400;600;700&display=swap');
+
+:root {
+  --ink: #1c241c;
+  --muted: #5d675d;
+  --line: #d5ddd4;
+  --surface: #f3f6f2;
+  --accent: #2f6b4f;
+  --danger: #a13a2d;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Source Sans 3', 'Segoe UI', sans-serif;
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--ink);
+  background:
+    radial-gradient(ellipse at top left, #e7efe6 0%, transparent 45%),
+    radial-gradient(ellipse at bottom right, #e8e2d6 0%, transparent 40%),
+    linear-gradient(180deg, #f7f8f5, #eef1ec 55%, #e8ebe4);
+  background-attachment: fixed;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

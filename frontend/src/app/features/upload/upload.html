@@ -1,0 +1,39 @@
+<section class="upload">
+  <div class="upload__intro">
+    <p class="upload__eyebrow">Document Text Correction</p>
+    <h1>Upload a document to correct text</h1>
+    <p class="upload__lead">
+      PDF, JPG, or PNG. Only the text you edit changes — layout and appearance stay intact.
+    </p>
+  </div>
+
+  <div
+    class="upload__dropzone"
+    [class.upload__dropzone--active]="dragOver()"
+    [class.upload__dropzone--busy]="uploading()"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave()"
+    (drop)="onDrop($event)"
+  >
+    <input
+      #fileInput
+      class="upload__input"
+      type="file"
+      [accept]="accepted"
+      [disabled]="uploading()"
+      (change)="onFileInput($event)"
+    />
+
+    @if (uploading()) {
+      <p class="upload__status">{{ progressLabel() }}</p>
+    } @else {
+      <p class="upload__hint">Drag &amp; drop here, or</p>
+      <button type="button" class="upload__button" (click)="fileInput.click()">Choose file</button>
+      <p class="upload__formats">PDF · JPG · PNG</p>
+    }
+  </div>
+
+  @if (error()) {
+    <p class="upload__error" role="alert">{{ error() }}</p>
+  }
+</section>
