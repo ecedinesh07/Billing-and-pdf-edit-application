@@ -3,6 +3,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
+import { apiErrorMessage } from '../../core/api/api-error';
 import { DocumentApiService } from '../../core/api/document-api.service';
 import {
   DocumentMeta,
@@ -10,6 +11,7 @@ import {
   NormalizedDocument,
   TextBlock,
 } from '../../shared/models/document.model';
+import { ToastService } from '../../shared/toast/toast.service';
 
 @Component({
   selector: 'app-document-editor',
@@ -21,9 +23,9 @@ import {
 export class DocumentEditor implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly api = inject(DocumentApiService);
+  private readonly toast = inject(ToastService);
 
   readonly loading = signal(true);
-  readonly error = signal<string | null>(null);
   readonly meta = signal<DocumentMeta | null>(null);
   readonly model = signal<NormalizedDocument | null>(null);
   readonly selected = signal<TextBlock | null>(null);
@@ -35,7 +37,7 @@ export class DocumentEditor implements OnInit {
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('documentId');
     if (!id) {
-      this.error.set('Missing document id');
+      this.toast.show('Missing document id', 'danger', 0);
       this.loading.set(false);
       return;
     }
@@ -73,7 +75,7 @@ export class DocumentEditor implements OnInit {
     }
     const newText = this.editText();
     if (newText === block.text) {
-      this.error.set('Replacement text is unchanged');
+      this.toast.show('Replacement text is unchanged');
       return;
     }
 
@@ -93,7 +95,7 @@ export class DocumentEditor implements OnInit {
           this.busy.set(false);
         },
         error: (err) => {
-          this.error.set(err?.error?.detail ?? 'Edit failed');
+          this.showApiError(err, 'Edit failed');
           this.busy.set(false);
         },
       });
@@ -107,7 +109,7 @@ export class DocumentEditor implements OnInit {
         this.busy.set(false);
       },
       error: (err) => {
-        this.error.set(err?.error?.detail ?? 'Undo failed');
+        this.showApiError(err, 'Undo failed');
         this.busy.set(false);
       },
     });
@@ -121,7 +123,7 @@ export class DocumentEditor implements OnInit {
         this.busy.set(false);
       },
       error: (err) => {
-        this.error.set(err?.error?.detail ?? 'Redo failed');
+        this.showApiError(err, 'Redo failed');
         this.busy.set(false);
       },
     });
@@ -135,7 +137,7 @@ export class DocumentEditor implements OnInit {
         window.open(this.api.downloadUrl(this.documentId, res.export_id), '_blank');
       },
       error: (err) => {
-        this.error.set(err?.error?.detail ?? 'Export failed');
+        this.showApiError(err, 'Export failed');
         this.busy.set(false);
       },
     });
@@ -152,7 +154,12 @@ export class DocumentEditor implements OnInit {
     this.selected.set(null);
   }
 
+  private showApiError(err: unknown, fallback: string, sticky = false): void {
+    this.toast.show(apiErrorMessage(err, fallback), 'danger', sticky ? 0 : 6000);
+  }
+
   private load(id: string): void {
+    this.toast.clear();
     this.loading.set(true);
     this.api.getDocument(id).subscribe({
       next: (meta) => {
@@ -160,7 +167,7 @@ export class DocumentEditor implements OnInit {
         this.reloadModel();
       },
       error: (err) => {
-        this.error.set(err?.error?.detail ?? 'Failed to load document');
+        this.showApiError(err, 'Failed to load document', true);
         this.loading.set(false);
       },
     });
@@ -182,14 +189,14 @@ export class DocumentEditor implements OnInit {
         }
       },
       error: (err) => {
-        this.error.set(err?.error?.detail ?? 'Failed to load document model');
+        this.showApiError(err, 'Failed to load document model', true);
         this.loading.set(false);
       },
     });
 
     this.api.listEdits(this.documentId).subscribe({
       next: (ops) => this.operations.set(ops),
-      error: () => undefined,
+      error: (err) => this.showApiError(err, 'Failed to load edit history'),
     });
   }
 }

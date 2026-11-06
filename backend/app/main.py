@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.api import documents, edits, exports, uploads
 from app.core.config import get_settings
@@ -41,8 +42,11 @@ def create_app() -> FastAPI:
     app.include_router(edits.router, prefix=prefix)
     app.include_router(exports.router, prefix=prefix)
 
+    @app.get("/")
     @app.get("/health")
     async def health() -> dict[str, str]:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
         return {"status": "ok"}
 
     return app
