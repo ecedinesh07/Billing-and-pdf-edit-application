@@ -1,6 +1,6 @@
 <section class="editor">
   <header class="editor__header">
-    <a routerLink="/" class="editor__back">← Upload</a>
+    <a routerLink="/" class="editor__back">New file</a>
     <div class="editor__titles">
       <h1>{{ meta()?.original_filename || 'Document' }}</h1>
       <p>
@@ -18,28 +18,23 @@
     </div>
   </header>
 
-  @if (error()) {
-    <p class="editor__error" role="alert">{{ error() }}</p>
-  }
-
   @if (loading()) {
     <p class="editor__loading">Loading document…</p>
   } @else {
     <div class="editor__layout">
-      <div class="editor__canvas-wrap">
-        <div class="editor__pager">
-          <button type="button" (click)="prevPage()" [disabled]="pageIndex() === 0">Prev</button>
-          <span>Page {{ pageIndex() + 1 }} / {{ model()?.pages?.length || 1 }}</span>
-          <button
-            type="button"
-            (click)="nextPage()"
-            [disabled]="pageIndex() >= (model()?.pages?.length || 1) - 1"
-          >
-            Next
-          </button>
-        </div>
+      <div class="editor__pager">
+        <button type="button" (click)="prevPage()" [disabled]="pageIndex() === 0">Prev</button>
+        <span>Page {{ pageIndex() + 1 }} / {{ model()?.pages?.length || 1 }}</span>
+        <button
+          type="button"
+          (click)="nextPage()"
+          [disabled]="pageIndex() >= (model()?.pages?.length || 1) - 1"
+        >
+          Next
+        </button>
+      </div>
 
-        @if (currentPage(); as page) {
+      @if (currentPage(); as page) {
           <div
             class="editor__canvas"
             [style.aspect-ratio]="page.width + ' / ' + page.height"
@@ -76,8 +71,7 @@
               </p>
             }
           </div>
-        }
-      </div>
+      }
 
       <aside class="editor__side">
         <h2>Edit text</h2>

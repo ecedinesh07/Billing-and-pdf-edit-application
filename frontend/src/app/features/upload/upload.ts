@@ -2,7 +2,9 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
+import { apiErrorMessage } from '../../core/api/api-error';
 import { DocumentApiService } from '../../core/api/document-api.service';
+import { ToastService } from '../../shared/toast/toast.service';
 
 const ACCEPTED = '.pdf,.jpg,.jpeg,.png';
 
@@ -16,11 +18,11 @@ const ACCEPTED = '.pdf,.jpg,.jpeg,.png';
 export class Upload {
   private readonly api = inject(DocumentApiService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   readonly accepted = ACCEPTED;
   readonly uploading = signal(false);
   readonly progressLabel = signal('');
-  readonly error = signal<string | null>(null);
   readonly dragOver = signal(false);
 
   onFileInput(event: Event): void {
@@ -50,34 +52,11 @@ export class Upload {
     this.dragOver.set(false);
   }
 
-  private describeUploadError(err: unknown): string {
-    const httpErr = err as {
-      status?: number;
-      statusText?: string;
-      error?: { detail?: string } | string;
-      message?: string;
-    };
-
-    if (httpErr?.status === 0 || httpErr?.status === undefined) {
-      return 'Cannot reach the API at http://localhost:8000. Start the FastAPI backend, then try again.';
-    }
-
-    if (typeof httpErr?.error === 'object' && httpErr.error?.detail) {
-      return String(httpErr.error.detail);
-    }
-
-    if (typeof httpErr?.error === 'string' && httpErr.error.trim()) {
-      return httpErr.error;
-    }
-
-    return `Upload failed (${httpErr?.status ?? 'unknown'}${httpErr?.statusText ? ' ' + httpErr.statusText : ''}). Please try again.`;
-  }
-
   private upload(file: File): void {
-    this.error.set(null);
+    this.toast.clear();
     const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
     if (!['.pdf', '.jpg', '.jpeg', '.png'].includes(ext)) {
-      this.error.set('Unsupported file. Please upload PDF, JPG, or PNG.');
+      this.toast.show('Unsupported file. Please upload PDF, JPG, or PNG.');
       return;
     }
 
@@ -93,7 +72,7 @@ export class Upload {
       error: (err) => {
         this.uploading.set(false);
         this.progressLabel.set('');
-        this.error.set(this.describeUploadError(err));
+        this.toast.show(apiErrorMessage(err, 'Upload failed'));
       },
     });
   }
