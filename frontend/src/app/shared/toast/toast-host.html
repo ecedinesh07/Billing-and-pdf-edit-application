@@ -1,0 +1,8 @@
+<div class="toasts">
+  @for (toast of toasts(); track toast.id) {
+    <div class="toast" [class.toast--danger]="toast.kind === 'danger'" role="alert">
+      <p>{{ toast.text }}</p>
+      <button type="button" (click)="dismiss(toast.id)" aria-label="Dismiss">×</button>
+    </div>
+  }
+</div>

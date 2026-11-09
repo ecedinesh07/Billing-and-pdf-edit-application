@@ -59,24 +59,40 @@
 .editor__layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
-  gap: 1.25rem;
+  grid-template-areas:
+    'pager .'
+    'canvas side';
+  column-gap: 1.25rem;
+  row-gap: 0.75rem;
+  align-items: start;
+}
+
+.editor__pager {
+  grid-area: pager;
+}
+
+.editor__canvas {
+  grid-area: canvas;
+}
+
+.editor__side {
+  grid-area: side;
 }
 
 @media (max-width: 860px) {
   .editor__layout {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      'pager'
+      'canvas'
+      'side';
   }
-}
-
-.editor__canvas-wrap {
-  min-width: 0;
 }
 
 .editor__pager {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 0.75rem;
   color: var(--muted);
 }
 
@@ -215,6 +231,3 @@
   text-align: center;
 }
 
-.editor__error {
-  color: var(--danger);
-}

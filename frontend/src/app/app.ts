@@ -4,9 +4,11 @@ import { ThemeService } from './core/theme/theme.service';
 import { SiteFooter } from './shared/layout/site-footer/site-footer';
 import { SiteHeader } from './shared/layout/site-header/site-header';
 
+import { ToastHost } from './shared/toast/toast-host';
+
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, SiteHeader, SiteFooter],
+  imports: [RouterOutlet, SiteHeader, ToastHost, SiteFooter],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
