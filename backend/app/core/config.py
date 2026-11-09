@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -8,6 +9,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _BACKEND = Path(__file__).resolve().parents[2]
 _REPO = _BACKEND.parent
 _LIBPQ_ONLY_PARAMS = {"sslmode", "channel_binding"}
+_APP_ENV = os.environ.get("APP_ENV", "local").strip().lower()
+# local: .env.local only (SQLite unless that file sets a database).
+# dev/cloud: .env.dev (Neon). npm run backend:dev sets APP_ENV=dev.
+_ENV_FILES = (
+    (str(_REPO / ".env.dev"),)
+    if _APP_ENV in {"dev", "cloud"}
+    else (str(_REPO / ".env.local"), str(_BACKEND / ".env"))
+)
 
 
 def _to_async_url(url: str) -> str:
@@ -31,7 +40,7 @@ def _to_sync_url(url: str) -> str:
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=(str(_REPO / ".env"), str(_REPO / ".env.local"), str(_BACKEND / ".env")),
+        env_file=_ENV_FILES,
         env_file_encoding="utf-8",
         extra="ignore",
     )
