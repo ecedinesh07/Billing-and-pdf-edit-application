@@ -20,8 +20,7 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.shell__brand')?.textContent).toContain(
-      'Document Text Correction'
-    );
+    expect(compiled.querySelector('.site-header__name')?.textContent).toContain('EasyDoc');
+    expect(compiled.querySelector('app-site-footer')).toBeTruthy();
   });
 });

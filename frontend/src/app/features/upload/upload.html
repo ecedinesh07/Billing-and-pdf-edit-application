@@ -1,36 +1,75 @@
 <section class="upload">
-  <div class="upload__intro">
-    <p class="upload__eyebrow">Document Text Correction</p>
-    <h1>Upload a document to correct text</h1>
-    <p class="upload__lead">
-      PDF, JPG, or PNG. Only the text you edit changes — layout and appearance stay intact.
-    </p>
-  </div>
+  <div class="upload__stage">
+    <div class="upload__glow" aria-hidden="true"></div>
 
-  <div
-    class="upload__dropzone"
-    [class.upload__dropzone--active]="dragOver()"
-    [class.upload__dropzone--busy]="uploading()"
-    (dragover)="onDragOver($event)"
-    (dragleave)="onDragLeave()"
-    (drop)="onDrop($event)"
-  >
-    <input
-      #fileInput
-      class="upload__input"
-      type="file"
-      [accept]="accepted"
-      [disabled]="uploading()"
-      (change)="onFileInput($event)"
-    />
+    <div class="upload__intro">
+      <p class="upload__eyebrow">
+        <span class="upload__eyebrow-dot" aria-hidden="true"></span>
+        Document Text Correction
+      </p>
+      <h1>Upload a document to correct text</h1>
+      <p class="upload__lead">
+        PDF, JPG, or PNG. Only the text you edit changes — layout and appearance stay intact.
+      </p>
+    </div>
 
-    @if (uploading()) {
-      <p class="upload__status">{{ progressLabel() }}</p>
+    <div
+      class="upload__dropzone"
+      [class.upload__dropzone--active]="dragOver()"
+      [class.upload__dropzone--busy]="uploading()"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave()"
+      (drop)="onDrop($event)"
+      (click)="!uploading() && fileInput.click()"
+    >
+      <input
+        #fileInput
+        class="upload__input"
+        type="file"
+        [accept]="accepted"
+        [disabled]="uploading()"
+        (change)="onFileInput($event)"
+        (click)="$event.stopPropagation()"
+      />
+
+      <div class="upload__icon" aria-hidden="true">
+        <svg viewBox="0 0 48 48" fill="none">
+          <rect x="8" y="6" width="26" height="34" rx="4" class="upload__icon-sheet" />
+          <path d="M18 20h14M18 26h10M18 32h12" class="upload__icon-lines" />
+          <circle cx="34" cy="34" r="10" class="upload__icon-badge" />
+          <path d="M34 29v10M29 34h10" class="upload__icon-plus" />
+        </svg>
+      </div>
+
+      @if (uploading()) {
+        <p class="upload__status">{{ progressLabel() }}</p>
+        <div class="upload__progress" aria-hidden="true">
+          <span></span>
+        </div>
+      } @else {
+        <p class="upload__hint">
+          <strong>Drag &amp; drop</strong> your file here
+        </p>
+        <p class="upload__or">or</p>
+        <button
+          type="button"
+          class="upload__button"
+          (click)="$event.stopPropagation(); fileInput.click()"
+        >
+          Choose file
+        </button>
+        <ul class="upload__formats" aria-label="Supported formats">
+          <li>PDF</li>
+          <li>JPG</li>
+          <li>PNG</li>
+        </ul>
+      }
+    </div>
+
+    @if (error()) {
+      <p class="upload__error" role="alert">{{ error() }}</p>
     } @else {
-      <p class="upload__hint">Drag &amp; drop here, or</p>
-      <button type="button" class="upload__button" (click)="fileInput.click()">Choose file</button>
-      <p class="upload__formats">PDF · JPG · PNG</p>
+      <p class="upload__footnote">Secure local processing · Original document is never overwritten</p>
     }
   </div>
-
 </section>

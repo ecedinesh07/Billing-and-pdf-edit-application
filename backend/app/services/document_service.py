@@ -212,7 +212,19 @@ class DocumentService:
         return document
 
     async def get_page_preview_path(self, document_id: uuid.UUID, page_number: int) -> Path:
-        """Return a raster preview path for the editor background (never the master original)."""
+        """Return a raster preview path for the editor background (never the master original).
+
+        When edits are applied, returns a live preview that matches export rendering.
+        """
+        # Prefer edited live preview so the left pane matches download output.
+        from app.services.export_service import ExportService
+
+        live = await ExportService(self.db, self.settings, self.storage).live_page_preview(
+            document_id, page_number
+        )
+        if live is not None:
+            return live
+
         result = await self.db.execute(
             select(Document)
             .where(Document.id == document_id)

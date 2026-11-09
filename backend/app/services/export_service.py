@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from pathlib import Path
 
@@ -147,6 +148,87 @@ class ExportService:
         if not path.exists():
             raise FileNotFoundError("Export file missing")
         return path
+
+    async def live_page_preview(self, document_id: uuid.UUID, page_number: int) -> Path | None:
+        """Raster preview with applied edits (editor left pane). Returns None if no edits."""
+        result = await self.db.execute(
+            select(Document)
+            .where(Document.id == document_id)
+            .options(selectinload(Document.pages).selectinload(DocumentPage.text_blocks))
+        )
+        document = result.scalar_one_or_none()
+        if document is None:
+            raise LookupError("Document not found")
+
+        edits = await self._load_applied_edits(document)
+        if not edits:
+            return None
+
+        fingerprint = self._edits_fingerprint(edits)
+        # Bump render_tag when preview compositing changes so stale ghost caches are skipped.
+        render_tag = "r6"
+        preview_key = f"{document_id}/live_p{page_number}_{render_tag}_{fingerprint}.png"
+        preview_path = self.storage.working_path(preview_key)
+        if preview_path.exists():
+            return preview_path
+
+        preview_path.parent.mkdir(parents=True, exist_ok=True)
+        original = self.storage.resolve_original(document.original_storage_key)
+        glyph_sources = self._glyph_sources(document)
+
+        if document.mime_type == "application/pdf":
+            edited_key = f"{document_id}/live_{render_tag}_{fingerprint}.pdf"
+            edited_pdf = self.storage.working_path(edited_key)
+            if not edited_pdf.exists():
+                self.renderer.render(
+                    original=original,
+                    dest=edited_pdf,
+                    mime_type=document.mime_type,
+                    edits=edits,
+                    glyph_sources=glyph_sources,
+                )
+            from app.services.pdf_service import PdfService
+
+            PdfService().render_page_preview(edited_pdf, page_number, preview_path)
+        else:
+            self.renderer.render(
+                original=original,
+                dest=preview_path,
+                mime_type=document.mime_type,
+                edits=edits,
+                glyph_sources=glyph_sources,
+            )
+
+        self._cleanup_stale_live_previews(document_id, page_number, keep=preview_path)
+        return preview_path
+
+    @staticmethod
+    def _edits_fingerprint(edits: list[AppliedEdit]) -> str:
+        # Stable cache key from applied edit stack (order + values).
+        parts = [
+            f"{e.operation_type}:{e.page_number}:{e.old_value}->{e.new_value}:{e.block_id or ''}"
+            for e in edits
+        ]
+        digest = hashlib.sha1("|".join(parts).encode("utf-8")).hexdigest()[:12]
+        return f"{len(edits)}_{digest}"
+
+    def _cleanup_stale_live_previews(
+        self,
+        document_id: uuid.UUID,
+        page_number: int,
+        *,
+        keep: Path,
+    ) -> None:
+        folder = self.storage.working_path(str(document_id))
+        if not folder.exists():
+            return
+        prefix = f"live_p{page_number}_"
+        for path in folder.glob(f"{prefix}*.png"):
+            if path.resolve() != keep.resolve():
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    continue
 
     async def get_job(self, document_id: uuid.UUID, export_id: uuid.UUID) -> ExportJob:
         result = await self.db.execute(

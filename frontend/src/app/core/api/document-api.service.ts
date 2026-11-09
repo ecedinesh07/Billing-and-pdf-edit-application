@@ -63,7 +63,10 @@ export class DocumentApiService {
     return `${this.base}/documents/${documentId}/exports/${exportId}/download`;
   }
 
-  pagePreviewUrl(documentId: string, pageNumber: number): string {
-    return `${this.base}/documents/${documentId}/pages/${pageNumber}/preview`;
+  pagePreviewUrl(documentId: string, pageNumber: number, cacheBust?: string | number): string {
+    const base = `${this.base}/documents/${documentId}/pages/${pageNumber}/preview`;
+    return cacheBust === undefined || cacheBust === null || cacheBust === ''
+      ? base
+      : `${base}?v=${encodeURIComponent(String(cacheBust))}`;
   }
 }

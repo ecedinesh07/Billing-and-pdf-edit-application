@@ -28,9 +28,19 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+    # Always allow both localhost and 127.0.0.1 for the Angular dev server.
+    allow_origins = list(
+        dict.fromkeys(
+            [
+                *settings.cors_origin_list,
+                "http://localhost:4200",
+                "http://127.0.0.1:4200",
+            ]
+        )
+    )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origin_list,
+        allow_origins=allow_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

@@ -141,14 +141,15 @@
 
 .editor__block--selected {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
   z-index: 2;
 }
 
+/* Never paint replacement text on the canvas — the PDF/image preview is the source of truth. */
 .editor__block--selected .editor__block-label {
-  color: var(--ink);
-  background: color-mix(in srgb, white 82%, transparent);
+  color: transparent;
+  background: transparent;
 }
 
 .editor__block--low {

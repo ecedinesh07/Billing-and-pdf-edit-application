@@ -80,4 +80,12 @@ async def get_page_preview(
         media = "image/jpeg"
     elif suffix == ".webp":
         media = "image/webp"
-    return FileResponse(path, media_type=media, filename=path.name)
+    return FileResponse(
+        path,
+        media_type=media,
+        filename=path.name,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+        },
+    )

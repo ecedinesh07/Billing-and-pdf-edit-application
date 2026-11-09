@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 
 import { apiErrorMessage } from '../../core/api/api-error';
 import { DocumentApiService } from '../../core/api/document-api.service';
+import { environment } from '../../../environments/environment';
 import { ToastService } from '../../shared/toast/toast.service';
 
 const ACCEPTED = '.pdf,.jpg,.jpeg,.png';
