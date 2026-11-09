@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     database_url_sync: str = f"sqlite:///{(Path(__file__).resolve().parents[2] / 'storage' / 'docedit.db').as_posix()}"
 
 
-    cors_origins: str = "http://localhost:4200"
+    cors_origins: str = "http://localhost:4200,http://127.0.0.1:4200"
 
     storage_root: Path = Path(__file__).resolve().parents[2] / "storage"
     max_upload_bytes: int = 20 * 1024 * 1024  # 20 MB (open decision — adjustable)

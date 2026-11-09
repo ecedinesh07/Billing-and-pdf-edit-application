@@ -31,6 +31,8 @@ export class DocumentEditor implements OnInit {
   readonly operations = signal<EditOperation[]>([]);
   readonly busy = signal(false);
   readonly pageIndex = signal(0);
+  /** Bumps after apply/undo/redo so the left preview reloads edited pixels. */
+  readonly previewRevision = signal(0);
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('documentId');
@@ -56,8 +58,12 @@ export class DocumentEditor implements OnInit {
     if (!page || !this.documentId) {
       return null;
     }
-    // Cache-bust after edits so the user can refresh after re-upload; preview is original working image.
-    return this.api.pagePreviewUrl(this.documentId, page.page_number);
+    const applied = this.operations()
+      .filter((op) => op.status === 'applied')
+      .map((op) => op.id)
+      .join('.');
+    const bust = `${this.previewRevision()}-${applied || 'base'}`;
+    return this.api.pagePreviewUrl(this.documentId, page.page_number, bust);
   }
 
   selectBlock(block: TextBlock): void {
@@ -89,6 +95,7 @@ export class DocumentEditor implements OnInit {
       })
       .subscribe({
         next: () => {
+          this.previewRevision.update((n) => n + 1);
           this.reloadModel();
           this.busy.set(false);
         },
@@ -103,6 +110,7 @@ export class DocumentEditor implements OnInit {
     this.busy.set(true);
     this.api.undo(this.documentId).subscribe({
       next: () => {
+        this.previewRevision.update((n) => n + 1);
         this.reloadModel();
         this.busy.set(false);
       },
@@ -117,6 +125,7 @@ export class DocumentEditor implements OnInit {
     this.busy.set(true);
     this.api.redo(this.documentId).subscribe({
       next: () => {
+        this.previewRevision.update((n) => n + 1);
         this.reloadModel();
         this.busy.set(false);
       },

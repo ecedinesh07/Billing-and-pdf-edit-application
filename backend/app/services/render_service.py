@@ -173,7 +173,9 @@ class RenderService:
                 if page_number < 1 or page_number > doc.page_count:
                     continue
                 page = doc[page_number - 1]
-                pending: list[tuple[AppliedEdit, SpanStyle | None, fitz.Rect, bool]] = []
+                pending: list[
+                    tuple[AppliedEdit, SpanStyle | None, fitz.Rect, bool, tuple[float, float, float]]
+                ] = []
                 redact_images = fitz.PDF_REDACT_IMAGE_NONE
 
                 for edit in page_edits:
@@ -194,14 +196,19 @@ class RenderService:
                     fill = self._sample_background(page, cover)
                     # Redact only (no replacement text) so a default font is never injected here.
                     page.add_redact_annot(cover, fill=fill)
-                    pending.append((edit, style, cover, image_backed))
+                    pending.append((edit, style, cover, image_backed, fill))
 
                 page.apply_redactions(
                     images=redact_images,
                     graphics=fitz.PDF_REDACT_LINE_ART_NONE,
+                    text=fitz.PDF_REDACT_TEXT_REMOVE,
                 )
 
-                for edit, style, cover, image_backed in pending:
+                for edit, style, cover, image_backed, fill in pending:
+                    # Paint sampled paper over the cover so no old glyphs can ghost
+                    # under the replacement (common on form/table PDFs).
+                    page.draw_rect(cover, color=fill, fill=fill, width=0, overlay=True)
+
                     if edit.operation_type == OperationType.DELETE_TEXT.value:
                         continue
                     new_text = edit.new_value or ""
@@ -265,15 +272,26 @@ class RenderService:
                 if abs(((hit.y0 + hit.y1) / 2.0) - y_mid) <= line_tol and hit.x1 >= rect.x0 - 2:
                     cover |= hit
 
-        return fitz.Rect(cover.x0 - 0.4, cover.y0 - 0.4, cover.x1 + 0.4, cover.y1 + 0.4) & page.rect
+        # Slight pad so anti-aliased glyph edges / descenders are fully covered.
+        return fitz.Rect(cover.x0 - 0.75, cover.y0 - 0.75, cover.x1 + 0.75, cover.y1 + 0.75) & page.rect
 
     def _cover_intersects_image(self, page: fitz.Page, cover: fitz.Rect) -> bool:
+        """True only when the edit region itself sits on image pixels (scans)."""
         for block in page.get_text("dict").get("blocks", []):
-            if block.get("type") == 1 and abs(fitz.Rect(block["bbox"]) & cover) > 0:
+            if block.get("type") == 1 and abs(fitz.Rect(block["bbox"]) & cover) > 1.0:
                 return True
-        # Full-page / large embedded scans often still need pixel redaction.
-        if page.get_images():
-            return abs(cover) > 0
+        # Large full-page scan image: treat as image-backed when cover is on-page.
+        for img in page.get_images(full=True):
+            try:
+                rects = page.get_image_rects(img[0])
+            except Exception:  # noqa: BLE001
+                continue
+            for irect in rects:
+                area = abs(fitz.Rect(irect))
+                if area < page.rect.get_area() * 0.55:
+                    continue
+                if abs(fitz.Rect(irect) & cover) > 1.0:
+                    return True
         return False
 
     def _resolve_fontsize(
@@ -341,42 +359,186 @@ class RenderService:
         else:
             origin = (cover.x0, cover.y0 + fontsize * 0.85)
 
+        family = style.font_name if style else edit.font_family
+        flags = style.flags if style else 0
+
+        # Exact match for PDF Base-14 faces (Helvetica/Times/Courier) — do not
+        # substitute Arial or the weight/spacing will visibly change.
+        base14 = self._base14_fontname(family, flags)
+        if base14 is not None:
+            tracking = self._estimate_base14_tracking(base14, style, edit.old_value, fontsize)
+            self._insert_text_with_tracking(
+                page,
+                text=text,
+                origin=origin,
+                fontsize=fontsize,
+                fontname=base14,
+                color=color,
+                tracking=tracking,
+            )
+            return
+
         font = self._build_font(style, edit.font_family)
-        # Prefer TextWriter with the embedded font buffer for closest match.
+        tracking = self._estimate_char_tracking(font, style, edit.old_value, fontsize)
+
+        # Custom/embedded faces: TextWriter with a matching installed TTF.
         if font is not None:
             writer = fitz.TextWriter(page.rect)
-            writer.append(
-                origin,
-                text,
-                font=font,
-                fontsize=fontsize,
-            )
+            if abs(tracking) > 0.05 and len(text) > 1:
+                cursor_x = float(origin[0])
+                baseline = float(origin[1])
+                for index, ch in enumerate(text):
+                    writer.append((cursor_x, baseline), ch, font=font, fontsize=fontsize)
+                    advance = float(font.text_length(ch, fontsize=fontsize))
+                    cursor_x += advance
+                    if index < len(text) - 1:
+                        cursor_x += tracking
+            else:
+                writer.append(origin, text, font=font, fontsize=fontsize)
             writer.write_text(page, color=color)
             return
 
-        # Fallback: PDF base fonts only when embedded font cannot be used.
+        # Last resort: mapped Base-14 face.
         page.insert_text(
             origin,
             text,
             fontsize=fontsize,
-            fontname=self._map_font(style.font_name if style else edit.font_family),
+            fontname=self._map_font(family, flags),
             color=color,
         )
 
-    def _build_font(self, style: SpanStyle | None, fallback_family: str | None) -> fitz.Font | None:
-        if style and style.fontbuffer:
+    def _insert_text_with_tracking(
+        self,
+        page: fitz.Page,
+        *,
+        text: str,
+        origin: tuple[float, float],
+        fontsize: float,
+        fontname: str,
+        color: tuple[float, float, float],
+        tracking: float,
+    ) -> None:
+        if abs(tracking) <= 0.05 or len(text) <= 1:
+            page.insert_text(origin, text, fontsize=fontsize, fontname=fontname, color=color)
+            return
+        cursor_x = float(origin[0])
+        baseline = float(origin[1])
+        for index, ch in enumerate(text):
+            page.insert_text((cursor_x, baseline), ch, fontsize=fontsize, fontname=fontname, color=color)
+            # Approximate advance for Base-14 using Helvetica-like width via text length helper.
             try:
-                return fitz.Font(fontbuffer=style.fontbuffer)
+                advance = float(fitz.get_text_length(ch, fontname=fontname, fontsize=fontsize))
             except Exception:  # noqa: BLE001
-                pass
+                advance = fontsize * 0.5
+            cursor_x += advance
+            if index < len(text) - 1:
+                cursor_x += tracking
 
-        # Try common system fonts matching the family name (still better than Helvetica).
+    def _estimate_base14_tracking(
+        self,
+        fontname: str,
+        style: SpanStyle | None,
+        old_text: str | None,
+        fontsize: float,
+    ) -> float:
+        if style is None or not old_text or len(old_text) < 2:
+            return 0.0
+        try:
+            natural = float(fitz.get_text_length(old_text, fontname=fontname, fontsize=fontsize))
+        except Exception:  # noqa: BLE001
+            return 0.0
+        if natural <= 0:
+            return 0.0
+        return (float(style.bbox.width) - natural) / (len(old_text) - 1)
+
+    @staticmethod
+    def _base14_fontname(font_family: str | None, flags: int = 0) -> str | None:
+        """Return PyMuPDF Base-14 fontname when the PDF already used a standard face."""
+        raw = (font_family or "").strip()
+        if not raw:
+            return None
+        name = raw.lower().replace(" ", "")
+        if "+" in name:
+            name = name.split("+", 1)[-1]
+        bold = bool(flags & 2**4) or "bold" in name
+        italic = bool(flags & 2**1) or "italic" in name or "oblique" in name
+
+        if name.startswith("helvetica") or name in {"helv", "hebo", "heit", "hebi"}:
+            if bold and italic:
+                return "hebi"
+            if bold:
+                return "hebo"
+            if italic:
+                return "heit"
+            return "helv"
+        if name.startswith("times") or name in {"tiro", "tibo", "tiit", "tibi"}:
+            if bold and italic:
+                return "times-bolditalic"
+            if bold:
+                return "times-bold"
+            if italic:
+                return "times-italic"
+            return "times-roman"
+        if name.startswith("courier") or name in {"cour", "cobo", "coit", "cobi"}:
+            if bold and italic:
+                return "cobo"
+            if bold:
+                return "cobo"
+            if italic:
+                return "coit"
+            return "cour"
+        return None
+
+
+    def _estimate_char_tracking(
+        self,
+        font: fitz.Font | None,
+        style: SpanStyle | None,
+        old_text: str | None,
+        fontsize: float,
+    ) -> float:
+        """Recover original letter-spacing from span width vs natural glyph width."""
+        if font is None or style is None or not old_text or len(old_text) < 2:
+            return 0.0
+        try:
+            natural = float(font.text_length(old_text, fontsize=fontsize))
+        except Exception:  # noqa: BLE001
+            return 0.0
+        if natural <= 0:
+            return 0.0
+        return (float(style.bbox.width) - natural) / (len(old_text) - 1)
+
+    def _build_font(self, style: SpanStyle | None, fallback_family: str | None) -> fitz.Font | None:
         family = (style.font_name if style else fallback_family) or ""
-        for path in self._candidate_system_fonts(family, style.flags if style else 0):
+        flags = style.flags if style else 0
+
+        # PDF Base-14 faces must stay on the native insert_text path — never load a
+        # substitute TTF (Arial for Helvetica, etc.) or weight/spacing will change.
+        if self._base14_fontname(family, flags) is not None:
+            return None
+
+        # Prefer installed system fonts first. PDF subset buffers often re-embed as the
+        # wrong family (e.g. Arial-BoldMT → NotoSerif-Regular) and change the look.
+        for path in self._candidate_system_fonts(family, flags):
             try:
                 return fitz.Font(fontfile=path)
             except Exception:  # noqa: BLE001
                 continue
+
+        if style and style.fontbuffer:
+            try:
+                font = fitz.Font(fontbuffer=style.fontbuffer)
+                # Reject buffers that MuPDF remaps to an unrelated fallback face.
+                name = (font.name or "").lower()
+                target = family.lower().replace(" ", "").replace("-", "")
+                if target and name:
+                    compact = name.replace(" ", "").replace("-", "")
+                    if "noto" in compact and "noto" not in target:
+                        raise ValueError("subset remapped to Noto fallback")
+                return font
+            except Exception:  # noqa: BLE001
+                pass
+
         return None
 
     def _lookup_span_style(
@@ -1205,12 +1367,32 @@ class RenderService:
         return (r, g, b)
 
     @staticmethod
-    def _map_font(font_family: str | None) -> str:
+    def _map_font(font_family: str | None, flags: int = 0) -> str:
         name = (font_family or "").lower()
-        if "times" in name or "serif" in name or "liberation" in name:
+        bold = bool(flags & 2**4) or "bold" in name
+        italic = bool(flags & 2**1) or "italic" in name or "oblique" in name
+        if "times" in name or ("serif" in name and "sans" not in name) or "liberation" in name:
+            if bold and italic:
+                return "times-bolditalic"
+            if bold:
+                return "times-bold"
+            if italic:
+                return "times-italic"
             return "times-roman"
         if "courier" in name or "mono" in name:
+            if bold and italic:
+                return "cobo"
+            if bold:
+                return "cobo"
+            if italic:
+                return "coit"
             return "cour"
+        if bold and italic:
+            return "hebi"
+        if bold:
+            return "hebo"
+        if italic:
+            return "heit"
         return "helv"
 
     @staticmethod
@@ -1233,9 +1415,35 @@ class RenderService:
                 filenames += ["LiberationSerif-Italic.ttf"]
             else:
                 filenames += ["LiberationSerif-Regular.ttf"]
-        if "times" in name or "serif" in name:
-            filenames += ["times.ttf", "Times New Roman.ttf", "timesi.ttf", "timesbd.ttf"]
-        if "arial" in name or "helvetica" in name or not filenames:
+        if "times" in name or ("serif" in name and "sans" not in name and "arial" not in name):
+            if bold and italic:
+                filenames += ["timesbi.ttf", "Times New Roman Bold Italic.ttf"]
+            elif bold:
+                filenames += ["timesbd.ttf", "Times New Roman Bold.ttf", "timesbd.ttf"]
+            elif italic:
+                filenames += ["timesi.ttf", "Times New Roman Italic.ttf"]
+            else:
+                filenames += ["times.ttf", "Times New Roman.ttf"]
+        # Never substitute Arial for Helvetica — Base-14 path must handle those faces.
+        # Mapping Helvetica → Arial Bold/Regular visibly changes weight and spacing.
+        if "arial" in name and "helvetica" not in name:
+            if bold and italic:
+                filenames += ["arialbi.ttf", "Arial Bold Italic.ttf", "Arial-BoldItalicMT.ttf"]
+            elif bold:
+                filenames += ["arialbd.ttf", "Arial Bold.ttf", "Arial-BoldMT.ttf", "arialbd.ttf"]
+            elif italic:
+                filenames += ["ariali.ttf", "Arial Italic.ttf"]
+            else:
+                filenames += ["arial.ttf", "Arial.ttf"]
+        if "calibri" in name:
+            if bold:
+                filenames += ["calibrib.ttf", "Calibri Bold.ttf"]
+            else:
+                filenames += ["calibri.ttf", "Calibri.ttf"]
+        if not filenames:
+            # Last-resort readable faces — still prefer bold when requested.
+            if bold:
+                filenames += ["arialbd.ttf", "Arial Bold.ttf", "timesbd.ttf"]
             filenames += ["arial.ttf", "Arial.ttf", "calibri.ttf"]
 
         paths: list[str] = []

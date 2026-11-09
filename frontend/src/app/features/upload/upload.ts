@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { DocumentApiService } from '../../core/api/document-api.service';
+import { environment } from '../../../environments/environment';
 
 const ACCEPTED = '.pdf,.jpg,.jpeg,.png';
 
@@ -59,7 +60,7 @@ export class Upload {
     };
 
     if (httpErr?.status === 0 || httpErr?.status === undefined) {
-      return 'Cannot reach the API at http://localhost:8000. Start the FastAPI backend, then try again.';
+      return `Cannot reach the API at ${environment.apiBaseUrl.replace(/\/api\/v1\/?$/, '')}. Start the FastAPI backend, then try again.`;
     }
 
     if (typeof httpErr?.error === 'object' && httpErr.error?.detail) {

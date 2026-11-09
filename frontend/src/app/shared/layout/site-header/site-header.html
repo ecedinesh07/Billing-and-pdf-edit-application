@@ -1,0 +1,98 @@
+<header class="site-header site-header--enter">
+  <div class="site-header__inner">
+    <a routerLink="/" class="site-header__brand" (click)="closeMenus()">
+      <img class="site-header__logo" src="/easydoc-mark.svg" width="36" height="36" alt="" />
+      <span class="site-header__brand-text">
+        <span class="site-header__name">EasyDoc</span>
+        <span class="site-header__tag">Easy Doc Correct</span>
+      </span>
+    </a>
+
+    <nav
+      id="primary-nav"
+      class="site-header__nav"
+      aria-label="Primary"
+      [class.site-header__nav--open]="menuOpen()"
+    >
+      @for (item of navItems; track item.label; let i = $index) {
+        <a
+          class="site-header__link"
+          [style.--i]="i"
+          [routerLink]="item.path"
+          routerLinkActive="is-active"
+          [routerLinkActiveOptions]="{ exact: item.exact === true }"
+          (click)="closeMenus()"
+        >
+          {{ item.label }}
+        </a>
+      }
+    </nav>
+
+    <div class="site-header__actions">
+      <div class="theme-picker" [class.theme-picker--open]="themeOpen()">
+        <div class="theme-picker__callout">
+          <span class="theme-picker__badge">Theme</span>
+          <span class="theme-picker__hint">Customize colors</span>
+        </div>
+        <button
+          type="button"
+          class="theme-picker__trigger"
+          [attr.aria-expanded]="themeOpen()"
+          aria-haspopup="listbox"
+          aria-label="Change color theme — customize site colors"
+          (click)="toggleThemePanel()"
+        >
+          <span
+            class="theme-picker__swatch"
+            [style.background]="theme.activeTheme().swatch"
+            aria-hidden="true"
+          ></span>
+          <span class="theme-picker__copy">
+            <span class="theme-picker__label">{{ theme.activeTheme().label }}</span>
+            <span class="theme-picker__micro">Tap to change</span>
+          </span>
+        </button>
+
+        @if (themeOpen()) {
+          <div class="theme-picker__panel" role="listbox" aria-label="Themes">
+            <p class="theme-picker__title">Choose your look</p>
+            <p class="theme-picker__subtitle">Colors update across header, page, and footer.</p>
+            <div class="theme-picker__grid">
+              @for (t of theme.themes; track t.id) {
+                <button
+                  type="button"
+                  class="theme-picker__option"
+                  role="option"
+                  [attr.aria-selected]="theme.themeId() === t.id"
+                  [class.is-selected]="theme.themeId() === t.id"
+                  (click)="selectTheme(t.id)"
+                >
+                  <span class="theme-picker__dot" [style.background]="t.swatch"></span>
+                  <span>{{ t.label }}</span>
+                </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <button
+        type="button"
+        class="site-header__burger"
+        [class.is-open]="menuOpen()"
+        [attr.aria-expanded]="menuOpen()"
+        aria-controls="primary-nav"
+        aria-label="Toggle menu"
+        (click)="toggleMenu()"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </div>
+
+  @if (menuOpen() || themeOpen()) {
+    <button type="button" class="site-header__scrim" aria-label="Close menus" (click)="closeMenus()"></button>
+  }
+</header>

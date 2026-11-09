@@ -1,15 +1,33 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,550;9..144,700&family=Source+Sans+3:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,550;9..144,700&family=Manrope:wght@400;600;700&display=swap');
 
 :root {
-  --ink: #1c241c;
-  --muted: #5d675d;
-  --line: #d5ddd4;
-  --surface: #f3f6f2;
-  --accent: #2f6b4f;
-  --danger: #a13a2d;
+  /* Default = Aqua (dark) — overridden by ThemeService / last chosen theme */
+  --ink: #e6f7f9;
+  --muted: #8eb8bf;
+  --line: #1f4f57;
+  --surface: #0b2c32;
+  --surface-elevated: #123940;
+  --accent: #1ad0df;
+  --accent-strong: #0ea5b3;
+  --accent-soft: #164850;
+  --accent-contrast: #042328;
+  --secondary: #ff8a65;
+  --danger: #fb7185;
+  --header-bg: linear-gradient(120deg, #06262c 0%, #0c343b 45%, #11454e 100%);
+  --header-border: #1f5560;
+  --footer-bg: linear-gradient(165deg, #02161a 0%, #041f24 48%, #0a3038 100%);
+  --footer-ink: #e6f7f9;
+  --footer-muted: #7faab2;
+  --glow-a: #0a3d46;
+  --glow-b: #083038;
+  --page-top: #061f24;
+  --page-mid: #08272d;
+  --page-end: #04181c;
+  --nav-active: #1ad0df;
+  --chip-ring: #14c4d4;
   --font-display: 'Fraunces', Georgia, serif;
-  --font-body: 'Source Sans 3', 'Segoe UI', sans-serif;
-  color-scheme: light;
+  --font-body: 'Manrope', 'Segoe UI', sans-serif;
+  color-scheme: dark;
 }
 
 *,
@@ -28,13 +46,23 @@ body {
   font-family: var(--font-body);
   color: var(--ink);
   background:
-    radial-gradient(ellipse at top left, #e7efe6 0%, transparent 45%),
-    radial-gradient(ellipse at bottom right, #e8e2d6 0%, transparent 40%),
-    linear-gradient(180deg, #f7f8f5, #eef1ec 55%, #e8ebe4);
+    radial-gradient(ellipse at top left, var(--glow-a) 0%, transparent 45%),
+    radial-gradient(ellipse at bottom right, var(--glow-b) 0%, transparent 40%),
+    linear-gradient(180deg, var(--page-top), var(--page-mid) 55%, var(--page-end));
   background-attachment: fixed;
+  transition: color 0.25s ease, background 0.35s ease;
+}
+
+a {
+  color: inherit;
 }
 
 button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
 }

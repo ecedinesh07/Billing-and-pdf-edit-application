@@ -55,7 +55,7 @@ def test_replace_reuses_embedded_liberation_serif(tmp_path: Path):
 
     out = fitz.open(exported)
     try:
-        text = out[0].get_text()
+        text = out[0].get_text().replace("\xa0", " ")
         assert "Lodgement Notice new" in text
 
         # Replacement span should keep serif family and ~28pt size (not Helvetica).
@@ -65,12 +65,13 @@ def test_replace_reuses_embedded_liberation_serif(tmp_path: Path):
                 continue
             for line in block.get("lines", []):
                 for s in line.get("spans", []):
-                    if "Lodgement Notice new" in (s.get("text") or ""):
+                    if "Lodgement Notice new" in (s.get("text") or "").replace("\xa0", " "):
                         replaced = s
                         break
         assert replaced is not None
         font = (replaced.get("font") or "").lower()
         assert "helv" not in font
-        assert abs(float(replaced.get("size") or 0) - 28.0) < 1.5
+        assert "noto" not in font
+        assert abs(float(replaced.get("size") or 0) - float(span.get("size") or 28.0)) < 1.5
     finally:
         out.close()
