@@ -1,59 +1,71 @@
-# Frontend
+# EasyDoc
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.1.5.
+Easy Doc Correct
 
-## Development server
+EasyDoc corrects text in a document you already have. Upload a PDF, JPG, or PNG, change only the words you choose, and download a file that still looks like the original. It works on real documents such as receipts, bills, invoices, quotations, and statements, and it does not rebuild them from a template.
 
-To start a local development server, run:
+**Original document + edit operations = final document.** The upload is kept. Each change is stored as an operation (`replace_text`, `insert_text`, `delete_text`). Export applies those operations to a derived file.
 
-```bash
-ng serve
-```
+## Stack
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+- Angular 20 frontend
+- Python / FastAPI backend
+- SQLite for local development, PostgreSQL (Neon or Docker) when configured
+- Firebase Hosting for the frontend
 
-## Code scaffolding
+## Run locally
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Use two terminals from the repository root.
 
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+**API** at http://127.0.0.1:8000
 
 ```bash
-ng generate --help
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 ```
 
-## Building
+On macOS or Linux, activate with `source .venv/bin/activate`.
 
-To build the project run:
+- Health: http://127.0.0.1:8000/health
+- Docs: http://127.0.0.1:8000/docs
+
+Leave `DATABASE_URL` unset to use SQLite at `backend/storage/docedit.db`. Copy `backend/.env.example` when you want Postgres.
+
+**App** at http://localhost:4200
 
 ```bash
-ng build
+cd frontend
+npm install
+npm start
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+The dev server calls `http://localhost:8000/api/v1`.
 
-## Running unit tests
+From the repository root you can also use `npm run backend` and `npm run frontend`.
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+## Docker
+
+Postgres and the API:
 
 ```bash
-ng test
+npm run docker:up
 ```
 
-## Running end-to-end tests
+Stop with `npm run docker:down`. The Angular app still runs with `npm run frontend`.
 
-For end-to-end (e2e) testing, run:
+## Scripts
 
-```bash
-ng e2e
-```
+| Command | What it does |
+| --- | --- |
+| `npm run frontend` | Start the Angular dev server |
+| `npm run frontend:build` | Production build |
+| `npm run backend` | Start the API on port 8000 |
+| `npm run docker:up` | Build and start Postgres and the API |
+| `npm run deploy:hosting` | Build the frontend and deploy Firebase Hosting |
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## Product rule
 
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Change only what the user edits. Leave logos, layout, background, and unrelated text as they are.

@@ -6,10 +6,13 @@
   "scripts": {
     "frontend": "npm --prefix frontend start",
     "frontend:build": "npm --prefix frontend run build",
-    "backend": "cd backend && uvicorn app.main:app --reload --port 8000",
+    "backend:dev": "set APP_ENV=dev&& backend\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --port 8000 --app-dir backend",
+    "backend": "backend\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --port 8000 --app-dir backend",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
-    "deploy:hosting": "npx firebase deploy --only hosting"
+    "deploy:hosting": "npx firebase deploy --only hosting",
+    "deploy:neon": "neon deploy --branch production --no-env-pull -y && neon env pull --branch production --file .env.dev -s postgres",
+    "deploy:render": "git push origin HEAD:main"
   },
   "devDependencies": {
     "firebase-tools": "^15.35.0"
