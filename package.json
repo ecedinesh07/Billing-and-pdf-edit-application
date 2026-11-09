@@ -8,6 +8,14 @@
     "frontend:build": "npm --prefix frontend run build",
     "backend": "cd backend && uvicorn app.main:app --reload --port 8000",
     "docker:up": "docker compose up --build",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "deploy:hosting": "npx firebase deploy --only hosting"
+  },
+  "devDependencies": {
+    "firebase-tools": "^15.35.0"
+  },
+  "dependencies": {
+    "@neon/config": "^1.11.3",
+    "@neon/env": "^1.6.15"
   }
 }

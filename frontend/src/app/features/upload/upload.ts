@@ -4,7 +4,6 @@ import { Router } from '@angular/router';
 
 import { apiErrorMessage } from '../../core/api/api-error';
 import { DocumentApiService } from '../../core/api/document-api.service';
-import { environment } from '../../../environments/environment';
 import { ToastService } from '../../shared/toast/toast.service';
 
 const ACCEPTED = '.pdf,.jpg,.jpeg,.png';
@@ -25,6 +24,7 @@ export class Upload {
   readonly uploading = signal(false);
   readonly progressLabel = signal('');
   readonly dragOver = signal(false);
+  readonly error = signal('');
 
   onFileInput(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -55,9 +55,10 @@ export class Upload {
 
   private upload(file: File): void {
     this.toast.clear();
+    this.error.set('');
     const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
     if (!['.pdf', '.jpg', '.jpeg', '.png'].includes(ext)) {
-      this.toast.show('Unsupported file. Please upload PDF, JPG, or PNG.');
+      this.fail('Unsupported file. Please upload PDF, JPG, or PNG.');
       return;
     }
 
@@ -73,8 +74,13 @@ export class Upload {
       error: (err) => {
         this.uploading.set(false);
         this.progressLabel.set('');
-        this.toast.show(apiErrorMessage(err, 'Upload failed'));
+        this.fail(apiErrorMessage(err, 'Upload failed'));
       },
     });
+  }
+
+  private fail(message: string): void {
+    this.error.set(message);
+    this.toast.show(message);
   }
 }
